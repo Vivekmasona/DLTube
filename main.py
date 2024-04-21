@@ -1,8 +1,8 @@
 # type: ignore
 from flask import Flask, render_template, request, send_file
 import os
-import yt_dlp as youtube_dl
 import re
+import subprocess
 from pytz import timezone
 from datetime import datetime
 
@@ -18,8 +18,6 @@ def index():
             file = download_media(youtube_url, selected_format)
             try:
                 return send_file(file, as_attachment=True)
-            except:
-                return render_template("index.html", invalid_url=True)
             finally:
                 os.remove(file)
         else:
@@ -36,25 +34,11 @@ def is_valid_url(url):
     return False
 
 def download_media(url, selected_format):
-    ydl_opts = {
-        "format": "bestaudio" if selected_format == "mp3" else "best",
-        "outtmpl": "%(title)s.%(ext)s",
-        "no_playlist": True,
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "160"
-            }
-        ] if selected_format == "mp3" else []
-    }
+    process = ['yt-dlp', '-x', '--audio-format', selected_format, '--no-playlist', '-o', '%(title)s.%(ext)s', url] if selected_format == 'mp3' else ['yt-dlp', '--recode-video', selected_format, '--no-playlist', '-o', '%(title)s.%(ext)s', url]
+    subprocess.run(process)
 
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(url, download=True)
-        media_file = ydl.prepare_filename(info_dict)
-        base, ext = os.path.splitext(media_file)
-        output_file = base + f".{selected_format}"
-
+    new_files = [file for file in os.listdir('.') if file.endswith(".mp3")] if selected_format == "mp3" else [file for file in os.listdir('.') if file.endswith(".mp4")]
+    output_file = new_files[0]
     return output_file
 
 def get_login_time(tz: str) -> str:

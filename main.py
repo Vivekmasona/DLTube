@@ -34,7 +34,7 @@ def is_valid_url(url):
     return False
 
 def download_media(url, selected_format):
-    process = ['yt-dlp', '-x', '--audio-format', selected_format, '--no-playlist', '-o', '%(title)s.%(ext)s', url] if selected_format == 'mp3' else ['yt-dlp', '--recode-video', selected_format, '--no-playlist', '-o', '%(title)s.%(ext)s', url]
+    process = ['yt-dlp', '-x', '--audio-format', selected_format, '--no-playlist', '-o', '%(title)s.%(ext)s', url] if selected_format == 'mp3' else ['yt-dlp', '-f', 'best', '--no-playlist', '-o', '%(title)s.%(ext)s', url]
     subprocess.run(process)
 
     new_files = [file for file in os.listdir('.') if file.endswith(".mp3")] if selected_format == "mp3" else [file for file in os.listdir('.') if file.endswith(".mp4")]

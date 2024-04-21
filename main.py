@@ -18,6 +18,8 @@ def index():
             file = download_media(youtube_url, selected_format)
             try:
                 return send_file(file, as_attachment=True)
+            except:
+                return render_template("index.html", invalid_url=True)
             finally:
                 os.remove(file)
         else:
@@ -35,15 +37,17 @@ def is_valid_url(url):
 
 def download_media(url, selected_format):
     ydl_opts = {
+        "format": "bestaudio" if selected_format == "mp3" else "best",
         "outtmpl": "%(title)s.%(ext)s",
-        "no_playlist": True
+        "no_playlist": True,
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "160"
+            }
+        ] if selected_format == "mp3" else []
     }
-
-    if selected_format == "mp3":
-        ydl_opts["extract_audio"] = True
-        ydl_opts["audioformat"] = "mp3"
-    else:
-        ydl_opts["recode_video"] = "mp4"
 
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         info_dict = ydl.extract_info(url, download=True)

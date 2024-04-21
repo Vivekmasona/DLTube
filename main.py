@@ -35,16 +35,15 @@ def is_valid_url(url):
 
 def download_media(url, selected_format):
     ydl_opts = {
-        "format": "bestaudio/best" if selected_format == "mp3" else "best",
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "160",
-            }
-        ] if selected_format == "mp3" else [],
         "outtmpl": "%(title)s.%(ext)s",
+        "no_playlist": True
     }
+
+    if selected_format == "mp3":
+        ydl_opts["extract_audio"] = True
+        ydl_opts["audioformat"] = "mp3"
+    else:
+        ydl_opts["recode_video"] = "mp4"
 
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         info_dict = ydl.extract_info(url, download=True)

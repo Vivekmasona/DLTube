@@ -1,48 +1,49 @@
-# type: ignore
-from flask import Flask, render_template, request, send_file
-import os
-import re
-import subprocess
-from pytz import timezone
-from datetime import datetime
+from flask import Flask, request, jsonify
+from yt_dlp import YoutubeDL
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    invalid_url = False
-    if request.method == "POST":
-        youtube_url = request.form["youtube_url"]
-        selected_format = request.form["format"]
-        if is_valid_url(youtube_url):
-            file = download_media(youtube_url, selected_format)
-            try:
-                return send_file(file, as_attachment=True)
-            finally:
-                os.remove(file)
-        else:
-            invalid_url = True
+@app.route('/json', methods=['GET'])
+def get_youtube_audio():
+    youtube_url = request.args.get('url')
+
+    if youtube_url:
+        try:
+            # yt-dlp options for extracting URL without downloading
+            ydl_opts = {
+                'format': 'bestaudio/best',  # Get best audio or single file
+                'quiet': True,  # Suppress verbose output
+            }
+            with YoutubeDL(ydl_opts) as ydl:
+                info_dict = ydl.extract_info(youtube_url, download=False)  # No download
+                playback_url = info_dict.get('url', None)  # Direct playback URL
+                title = info_dict.get('title', 'Unknown Title')
+
+            if playback_url:
+                response = {
+                    "status": "success",
+                    "title": title,
+                    "playback_url": playback_url
+                }
+            else:
+                response = {
+                    "status": "error",
+                    "message": "Could not retrieve playback URL"
+                }
+
+        except Exception as e:
+            response = {
+                "status": "error",
+                "message": str(e)
+            }
+
     else:
-        invalid_url = False
-    return render_template("index.html", invalid_url=invalid_url)
+        response = {
+            "status": "error",
+            "message": "No URL provided. Use '?url=YOUTUBE_URL' in the query."
+        }
 
-def is_valid_url(url):
-    youtube_regex = r"(?:https?:\/\/(?:www\.)?)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})"
-    match = re.match(youtube_regex, url)
-    if match:
-        return True
-    return False
+    return jsonify(response)
 
-def download_media(url, selected_format):
-    process = ['yt-dlp', '-x', '--audio-format', selected_format, '--no-playlist', '-o', '%(title)s.%(ext)s', url] if selected_format == 'mp3' else ['yt-dlp', '-f', 'best', '--no-playlist', '-o', '%(title)s.%(ext)s', url]
-    subprocess.run(process)
-
-    new_files = [file for file in os.listdir('.') if file.endswith(".mp3")] if selected_format == "mp3" else [file for file in os.listdir('.') if file.endswith(".mp4")]
-    output_file = new_files[0]
-    return output_file
-
-def get_login_time(tz: str) -> str:
-    return f"\nLogged in at {datetime.now(timezone(tz)).strftime('%m/%d/%Y, %I:%M:%S %p')}\nTimezone: {tz}\n"
-
-print(get_login_time('US/Eastern'))
-app.run(host='0.0.0.0', port=80)
+if __name__ == '__main__':
+    app.run(debug=True)
